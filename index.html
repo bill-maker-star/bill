@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <h1><i class="fas fa-utensils"></i> Restaurant Manager</h1>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tabs">
+                <div class="tab active" onclick="openTab('database')">
+                    <i class="fas fa-database"></i> Menu
+                </div>
+                <div class="tab" onclick="openTab('backend-bill')">
+                    <i class="fas fa-receipt"></i> Create Bill
+                </div>
+                <div class="tab" onclick="openTab('qr-generator')">
+                    <i class="fas fa-qrcode"></i> QR Generator
+                </div>
+                <div class="tab" onclick="openTab('customer-bill')">
+                    <i class="fas fa-print"></i> Receipt
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 1: Database -->
+        <div id="database" class="tab-content active">
+            <div class="card">
+                <h2><i class="fas fa-list"></i> Menu Items</h2>
+                <div class="table-container">
+                    <table id="menu-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Food Name</th>
+                                <th>Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="menu-items">
+                            <!-- Items will be added here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="add-item-form">
+                    <h3><i class="fas fa-plus-circle"></i> Add New Item</h3>
+                    <div class="form-row">
+                        <input type="text" id="new-name" placeholder="Food Name">
+                        <input type="number" id="new-price" placeholder="Price">
+                        <button class="primary-btn" onclick="addMenuItem()">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Backend Bill -->
+        <div id="backend-bill" class="tab-content">
+            <div class="card">
+                <h2><i class="fas fa-file-invoice-dollar"></i> Create New Bill</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="bill-no">Bill Number</label>
+                        <input type="text" id="bill-no" placeholder="e.g. 1001">
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-name">Customer Name</label>
+                        <input type="text" id="customer-name" placeholder="Customer Name">
+                    </div>
+                </div>
+                
+                <div class="bill-items-container">
+                    <h3>Bill Items</h3>
+                    <div id="bill-items">
+                        <div class="bill-item">
+                            <input type="text" class="food-id" placeholder="Food ID" onchange="fillFoodDetails(this)" onkeypress="handleFoodIdEnter(event, this)">
+                            <input type="text" class="food-name" placeholder="Food Name" readonly>
+                            <input type="number" class="food-price" placeholder="Price" readonly>
+                            <input type="number" class="food-qty" placeholder="Qty" min="1" onchange="calculateTotal(this)" onkeypress="handleQtyEnter(event, this)">
+                            <input type="number" class="food-total" placeholder="Total" readonly>
+                            <button class="danger-btn" onclick="removeBillItem(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button class="secondary-btn" onclick="addBillItem()">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                </div>
+                
+                <div class="bill-summary">
+                    <div class="grand-total">
+                        Total: ₹<span id="grand-total">0.00</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payment-method">Payment Method</label>
+                        <select id="payment-method">
+                            <option value="Cash">Cash</option>
+                            <option value="Online Pay">Online Pay</option>
+                            <option value="Card">Card</option>
+                        </select>
+                    </div>
+                    
+                    <button class="primary-btn" onclick="generateQR()">
+                        <i class="fas fa-qrcode"></i> Generate QR & Receipt
+                    </button>
+                    <button onclick="openTab('qr-generator')">Test QR Tab</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 3: QR Generator -->
+        <div id="qr-generator" class="tab-content">
+            <div class="card">
+                <h2><i class="fas fa-qrcode"></i> Secure QR Code Generator</h2>
+                <p class="subtitle">Create secure QR codes with bill information</p>
+                
+                <div class="creator-section">
+                    <div class="input-group">
+                        <label><i class="fas fa-toggle-on"></i> Data Source:</label>
+                        <select id="data-source">
+                            <option value="auto">Automatic (From Current Bill)</option>
+                            <option value="manual">Manual Input</option>
+                        </select>
+                    </div>
+                    
+                    <div id="field-container">
+                        <!-- Headers and auto-populated fields will be added dynamically -->
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="message"><i class="fas fa-file-alt"></i> Bill Information:</label>
+                        <textarea id="message" placeholder="Enter bill details or this will be auto-filled from your bill"></textarea>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="password"><i class="fas fa-lock"></i> Encryption Password:</label>
+                        <input type="password" id="password" placeholder="Enter a strong password">
+                    </div>
+                    
+                    <div class="actions">
+                        <button id="encrypt-btn" class="primary-btn">
+                            <i class="fas fa-lock"></i> Generate Secure QR
+                        </button>
+                        
+                        <button id="reset-btn" class="secondary-btn">
+                            <i class="fas fa-redo"></i> Reset
+                        </button>
+
+                    </div>
+                </div>
+                
+                <div class="output-section">
+                    <h2><i class="fas fa-qrcode"></i> Your Secure QR Code</h2>
+                    <div id="qrcode"></div>
+                    
+                    <div class="output-controls">
+                        <button id="download-btn" class="secondary-btn" disabled>
+                            <i class="fas fa-download"></i> Download QR
+                        </button>
+                        <button id="copy-text-btn" class="secondary-btn" disabled>
+                            <i class="fas fa-copy"></i> Copy Data
+                        </button>
+                    </div>
+                    
+                    <div class="output-text">
+                        <label>Encrypted Data:</label>
+                        <textarea id="encrypted-output" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 4: Customer Bill -->
+        <div id="customer-bill" class="tab-content">
+            <div class="card">
+                <div class="receipt-container">
+                    <div class="receipt" id="receipt">
+                        <div class="receipt-header">
+                            <div class="logo-placeholder">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                            <h1>CASH RECEIPT</h1>
+                            <div class="receipt-divider">••••••••••</div>
+                            <div class="shop-info">
+                                <strong id="receipt-shop-name">Delicious Bites</strong>
+                                <div id="receipt-address">123 Food Street, Mumbai</div>
+                                <div id="receipt-number">+91 9876543210</div>
+                            </div>
+                            <div class="receipt-divider">•••••</div>
+                        </div>
+                        
+                        <div class="receipt-details">
+                            <div class="detail-row">
+                                <span>Bill No:</span>
+                                <span id="receipt-bill-no">0001</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>Date:</span>
+                                <span id="receipt-date"></span>
+                            </div>
+                            <div class="detail-row">
+                                <span>Cashier:</span>
+                                <span id="receipt-cashier">John Doe</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>Customer:</span>
+                                <span id="receipt-customer">Walk-in</span>
+                            </div>
+                        </div>
+                        
+                        <table class="receipt-table" id="receipt-items">
+                            <!-- Bill items will be added here -->
+                        </table>
+                        
+                        <div class="receipt-divider">———————————</div>
+                        
+                        <div class="receipt-total">
+                            <span>Total Amount:</span>
+                            <span id="receipt-total">₹0.00</span>
+                        </div>
+                        
+                        <div class="payment-method">
+                            Payment Method: <span id="receipt-payment-method">Cash</span>
+                        </div>
+                        <div class="receipt-divider">———————————</div>
+                        <div class="receipt-footer">
+                            <div class="thank-you">Thank you for dining with us!</div>
+                            <div class="return-policy">
+                                Goods sold are not returnable or refundable
+                            </div>
+                        </div>
+                        <div class="receipt-divider">—————✂————————✂—————</div>
+                        <div class="qr-container" id="qr-code">
+                            <!-- QR code will be added here -->
+                        </div>
+                        
+                        
+                    </div>
+                    
+                    <button class="primary-btn print-btn" onclick="printReceipt()">
+                        <i class="fas fa-print"></i> Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
