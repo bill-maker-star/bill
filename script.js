@@ -70,7 +70,7 @@ function openTab(tabId) {
     }
 }
 
-// Menu Management (unchanged functions omitted for brevity)
+// Menu Management
 function renderMenuItems() {
     const tbody = document.getElementById('menu-items');
     if (!tbody) return;
@@ -80,7 +80,7 @@ function renderMenuItems() {
         tr.innerHTML = `
             <td>${item.id}</td>
             <td>${item.name}</td>
-            <td>₹${item.price.toFixed(2)}</td>
+            <td>₹${item.price}</td>
             <td>
                 <button onclick="editMenuItem(${item.id})">Edit</button>
                 <button onclick="deleteMenuItem(${item.id})">Delete</button>
@@ -92,7 +92,7 @@ function renderMenuItems() {
 
 function addMenuItem() {
     const name = document.getElementById('new-name').value.trim();
-    const price = parseFloat(document.getElementById('new-price').value);
+    const price = parseInt(document.getElementById('new-price').value);
     
     if (!name || isNaN(price) || price < 0) {
         alert('Please fill all fields correctly with valid values');
@@ -112,7 +112,7 @@ function editMenuItem(id) {
     if (!item) return;
 
     const newName = prompt('Enter new name:', item.name);
-    const newPrice = parseFloat(prompt('Enter new price:', item.price));
+    const newPrice = parseInt(prompt('Enter new price:', item.price));
     
     if (newName && !isNaN(newPrice) && newPrice >= 0) {
         item.name = newName.trim();
@@ -169,19 +169,19 @@ function fillFoodDetails(input) {
 
 function calculateTotal(input) {
     const parent = input.parentElement;
-    const price = parseFloat(parent.querySelector('.food-price').value) || 0;
-    const qty = parseFloat(input.value) || 0;
+    const price = parseInt(parent.querySelector('.food-price').value) || 0;
+    const qty = parseInt(input.value) || 0;
     const total = price * qty;
-    parent.querySelector('.food-total').value = total.toFixed(2);
+    parent.querySelector('.food-total').value = total;
     calculateGrandTotal();
 }
 
 function calculateGrandTotal() {
     let grandTotal = 0;
     document.querySelectorAll('.food-total').forEach(input => {
-        grandTotal += parseFloat(input.value) || 0;
+        grandTotal += parseInt(input.value) || 0;
     });
-    document.getElementById('grand-total').textContent = grandTotal.toFixed(2);
+    document.getElementById('grand-total').textContent = grandTotal;
 }
 
 function setupBillItemListeners() {
@@ -224,9 +224,9 @@ function generateQR() {
             console.log(`Processing bill item ${index + 1}`);
             const id = item.querySelector('.food-id')?.value || '';
             const name = item.querySelector('.food-name')?.value || '';
-            const price = parseFloat(item.querySelector('.food-price')?.value || '0');
-            const qty = parseFloat(item.querySelector('.food-qty')?.value || '0');
-            const total = parseFloat(item.querySelector('.food-total')?.value || '0');
+            const price = parseInt(item.querySelector('.food-price')?.value || '0');
+            const qty = parseInt(item.querySelector('.food-qty')?.value || '0');
+            const total = parseInt(item.querySelector('.food-total')?.value || '0');
             
             if (id && name && !isNaN(price) && !isNaN(qty) && !isNaN(total)) {
                 currentBill.items.push({ id, name, price, qty, total });
@@ -243,7 +243,7 @@ function generateQR() {
 
         const grandTotalElement = document.getElementById('grand-total');
         if (!grandTotalElement) throw new Error("Grand total element not found");
-        currentBill.total = parseFloat(grandTotalElement.textContent) || 0;
+        currentBill.total = parseInt(grandTotalElement.textContent) || 0;
 
         const paymentMethodElement = document.getElementById('payment-method');
         if (!paymentMethodElement) throw new Error("Payment method element not found");
@@ -309,12 +309,12 @@ function generateReceipt() {
         tr.innerHTML = `
             <td>${item.name}</td>
             <td>${item.qty}pcs</td>
-            <td>₹${item.total.toFixed(2)}</td>
+            <td>₹${item.total}</td>
         `;
         receiptTable.appendChild(tr);
     });
     
-    document.getElementById('receipt-total').textContent = `₹${currentBill.total.toFixed(2)}`;
+    document.getElementById('receipt-total').textContent = `₹${currentBill.total}`;
     document.getElementById('receipt-payment-method').textContent = currentBill.paymentMethod;
 }
 
@@ -511,9 +511,9 @@ async function generateEncryptedQR() {
         currentBill.items.forEach(item => {
             column1.push(item.id);
             column2.push(item.name);
-            column3.push(item.price.toFixed(2));
+            column3.push(item.price);
             column4.push(item.qty);
-            column5.push(item.total.toFixed(2));
+            column5.push(item.total);
         });
 
         dataString = [
@@ -690,7 +690,7 @@ function autoFillQRGeneratorFromBill() {
     const now = new Date();
     const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    messageInput.value = `[${currentBill.total.toFixed(2)}] [${dateStr}] [${timeStr}]`;
+    messageInput.value = `[${currentBill.total}] [${dateStr}] [${timeStr}]`;
     messageInput.readOnly = false; // Allow manual editing
     displayBillItems(); // Auto-fill item details
     qrcodeContainer.innerHTML = "<p style='text-align: center;'>Enter a password and click 'Generate Secure QR' to create the QR code.</p>";
@@ -705,7 +705,7 @@ function displayBillItems() {
     document.querySelectorAll(".data-field:not(.header-field)").forEach(field => field.remove());
     
     currentBill.items.forEach(item => {
-        const fields = [item.id, item.name, item.price.toFixed(2), item.qty.toString(), item.total.toFixed(2)];
+        const fields = [item.id, item.name, item.price, item.qty.toString(), item.total];
         fields.forEach(value => {
             const fieldDiv = document.createElement("div");
             fieldDiv.className = "data-field";
