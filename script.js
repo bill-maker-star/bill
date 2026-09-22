@@ -6,6 +6,12 @@ const restaurantInfo = {
     cashier: "John Doe"
 };
 
+const razorpayConfig = {
+    keyId: "rzp_live_SbgD0QL62YorA0",
+    currency: "INR",
+    themeColor: "#4361ee"
+};
+
 // Sample menu data
 let menuItems = [
     {id: 1, name: 'Pizza', price: 100},
@@ -214,67 +220,136 @@ function handleQtyEnter(event) {
     }
 }
 
-function generateQR() {
+async function generateQR() {
     console.log("Generate QR & Receipt button clicked");
     try {
-        currentBill.items = [];
-        const billItems = document.querySelectorAll('.bill-item');
-        console.log(`Found ${billItems.length} bill items`);
-        billItems.forEach((item, index) => {
-            console.log(`Processing bill item ${index + 1}`);
-            const id = item.querySelector('.food-id')?.value || '';
-            const name = item.querySelector('.food-name')?.value || '';
-            const price = parseInt(item.querySelector('.food-price')?.value || '0');
-            const qty = parseInt(item.querySelector('.food-qty')?.value || '0');
-            const total = parseInt(item.querySelector('.food-total')?.value || '0');
-            
-            if (id && name && !isNaN(price) && !isNaN(qty) && !isNaN(total)) {
-                currentBill.items.push({ id, name, price, qty, total });
-            } else {
-                console.warn(`Invalid data in bill item ${index + 1}: id=${id}, name=${name}, price=${price}, qty=${qty}, total=${total}`);
-            }
-        });
+        collectCurrentBillFromForm();
+        console.log("Current bill:", currentBill);
 
-        if (currentBill.items.length === 0) {
-            alert('Please add at least one item to the bill.');
-            console.log("No valid items added to bill, aborting");
+        if (isOnlinePaymentMethod(currentBill.paymentMethod)) {
+            const paymentResponse = await startRazorpayPayment();
+            if (!paymentResponse) {
+                console.log("Razorpay payment was closed before completion");
+                return;
+            }
+            currentBill.razorpayPaymentId = paymentResponse.razorpay_payment_id || '';
+            currentBill.paymentMethod = `Online Pay - Razorpay Paid (${currentBill.razorpayPaymentId})`;
+        }
+
+        finishBillGeneration();
+    } catch (error) {
+        console.error(`Error in generateQR: ${error.message}`);
+        alert(error.message || "An error occurred while generating the QR and receipt. Please check the console for details.");
+    }
+}
+
+function collectCurrentBillFromForm() {
+    currentBill.items = [];
+    const billItems = document.querySelectorAll('.bill-item');
+    console.log(`Found ${billItems.length} bill items`);
+    billItems.forEach((item, index) => {
+        console.log(`Processing bill item ${index + 1}`);
+        const id = item.querySelector('.food-id')?.value || '';
+        const name = item.querySelector('.food-name')?.value || '';
+        const price = parseInt(item.querySelector('.food-price')?.value || '0');
+        const qty = parseInt(item.querySelector('.food-qty')?.value || '0');
+        const total = parseInt(item.querySelector('.food-total')?.value || '0');
+
+        if (id && name && !isNaN(price) && !isNaN(qty) && qty > 0 && !isNaN(total) && total > 0) {
+            currentBill.items.push({ id, name, price, qty, total });
+        } else {
+            console.warn(`Invalid data in bill item ${index + 1}: id=${id}, name=${name}, price=${price}, qty=${qty}, total=${total}`);
+        }
+    });
+
+    if (currentBill.items.length === 0) {
+        throw new Error('Please add at least one item to the bill.');
+    }
+
+    const grandTotalElement = document.getElementById('grand-total');
+    if (!grandTotalElement) throw new Error("Grand total element not found");
+    currentBill.total = parseInt(grandTotalElement.textContent) || 0;
+    if (currentBill.total <= 0) {
+        throw new Error("Bill total must be greater than zero.");
+    }
+
+    const paymentMethodElement = document.getElementById('payment-method');
+    if (!paymentMethodElement) throw new Error("Payment method element not found");
+    currentBill.paymentMethod = paymentMethodElement.value;
+
+    const customerNameElement = document.getElementById('customer-name');
+    if (!customerNameElement) throw new Error("Customer name element not found");
+    currentBill.customerName = customerNameElement.value.trim() || 'Walk-in';
+}
+
+function isOnlinePaymentMethod(paymentMethod) {
+    return (paymentMethod || '').toLowerCase().includes('online');
+}
+
+function startRazorpayPayment() {
+    return new Promise((resolve, reject) => {
+        if (typeof Razorpay === "undefined") {
+            reject(new Error("Razorpay checkout script is not loaded. Please check your internet connection."));
             return;
         }
 
-        const grandTotalElement = document.getElementById('grand-total');
-        if (!grandTotalElement) throw new Error("Grand total element not found");
-        currentBill.total = parseInt(grandTotalElement.textContent) || 0;
-
-        const paymentMethodElement = document.getElementById('payment-method');
-        if (!paymentMethodElement) throw new Error("Payment method element not found");
-        currentBill.paymentMethod = paymentMethodElement.value;
-
-        const customerNameElement = document.getElementById('customer-name');
-        if (!customerNameElement) throw new Error("Customer name element not found");
-        currentBill.customerName = customerNameElement.value.trim() || 'Walk-in';
-        
-        console.log("Current bill:", currentBill);
-
-        try {
-            generateReceipt();
-        } catch (receiptError) {
-            console.error(`Error generating receipt: ${receiptError.message}`);
+        if (!razorpayConfig.keyId || razorpayConfig.keyId.includes("REPLACE_WITH_YOUR_KEY_ID")) {
+            reject(new Error("Please add your Razorpay Key ID in script.js before taking online payments."));
+            return;
         }
 
-        try {
-            autoFillQRGeneratorFromBill();
-        } catch (qrError) {
-            console.error(`Error auto-filling QR generator: ${qrError.message}`);
-        }
+        const billNo = document.getElementById('bill-no')?.value || '0001';
+        const amountInPaise = Math.round(currentBill.total * 100);
+        const options = {
+            key: razorpayConfig.keyId,
+            amount: amountInPaise,
+            currency: razorpayConfig.currency,
+            name: restaurantInfo.shopName,
+            description: `Bill ${billNo}`,
+            handler: function(response) {
+                resolve(response);
+            },
+            prefill: {
+                name: currentBill.customerName
+            },
+            notes: {
+                bill_number: billNo,
+                customer_name: currentBill.customerName
+            },
+            theme: {
+                color: razorpayConfig.themeColor
+            },
+            modal: {
+                ondismiss: function() {
+                    resolve(null);
+                }
+            }
+        };
 
-        console.log("Switching to QR Generator tab");
-        openTab('qr-generator');
-    } catch (error) {
-        console.error(`Error in generateQR: ${error.message}`);
-        alert("An error occurred while generating the QR and receipt. Please check the console for details.");
-        console.log("Switching to QR Generator tab despite error");
-        openTab('qr-generator');
+        const checkout = new Razorpay(options);
+        checkout.on('payment.failed', function(response) {
+            const description = response?.error?.description || "Razorpay payment failed.";
+            reject(new Error(description));
+        });
+        checkout.open();
+    });
+}
+
+function finishBillGeneration() {
+    try {
+        generateReceipt();
+    } catch (receiptError) {
+        console.error(`Error generating receipt: ${receiptError.message}`);
     }
+
+    try {
+        autoFillQRGeneratorFromBill();
+    } catch (qrError) {
+        console.error(`Error auto-filling QR generator: ${qrError.message}`);
+    }
+
+    console.log("Switching to QR Generator tab");
+    openTab('qr-generator');
 }
 
 // Receipt Generation
